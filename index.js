@@ -1,30 +1,29 @@
 const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
-const axios = require('axios');
 const schedule = require('node-schedule');
+const OpenAI = require('openai');
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const quickChartBase = 'https://quickchart.io/chart';
 const GROUP_CHAT_ID = '@Web3ChainLabsAI';
 
-// Функция за AI отговор чрез OpenAI
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Функция за AI отговор с OpenAI библиотека
 async function getAIResponse(question) {
   try {
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-3.5-turbo',
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Или 'gpt-3.5-turbo', ако нямаш достъп до gpt-4o-mini
       messages: [
         { role: 'system', content: 'You are a helpful AI that responds in the same language as the question asked.' },
         { role: 'user', content: question }
       ],
       max_tokens: 150,
       temperature: 0.7
-    }, {
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json'
-      }
     });
-    return response.data.choices[0].message.content.trim();
+    return completion.choices[0].message.content.trim();
   } catch (error) {
     console.error('Error with AI response:', error.message);
     return 'Sorry, I couldn’t process your question right now.';
@@ -33,6 +32,7 @@ async function getAIResponse(question) {
 
 // Текущи функции (без промяна)
 async function getTop20Cryptos() {
+  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
       params: { vs_currency: 'usd', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
@@ -49,6 +49,7 @@ async function getTop20Cryptos() {
 }
 
 async function getTop20MemeCoins() {
+  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
       params: { vs_currency: 'usd', category: 'meme-token', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
@@ -65,6 +66,7 @@ async function getTop20MemeCoins() {
 }
 
 async function getCryptoPrices() {
+  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
     const prices = response.data;
@@ -75,6 +77,7 @@ async function getCryptoPrices() {
 }
 
 async function getCryptoNews() {
+  const axios = require('axios');
   try {
     const response = await axios.get('https://min-api.cryptocompare.com/data/v2/news/?lang=EN');
     const news = response.data.Data[0];
@@ -86,6 +89,7 @@ async function getCryptoNews() {
 
 let lastEthPrice = null;
 async function checkPriceSurge() {
+  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
     const currentPrice = response.data.ethereum.usd;
@@ -110,6 +114,7 @@ async function getCryptoMeme() {
 
 // Нови функции за публикации
 async function getMarketAnalysis() {
+  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin');
     const change = response.data.market_data.price_change_percentage_24h;
@@ -160,7 +165,7 @@ function getTradingTip() {
   return tips[Math.floor(Math.random() * tips.length)];
 }
 
-// Поздравление на нови членове (на английски)
+// Поздравление на нови членове
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
   if (chatId.toString() === '-1002452661138') { // ID на @Web3ChainLabsAI
@@ -240,7 +245,7 @@ schedule.scheduleJob('0 13 * * *', () => {
   bot.sendMessage(GROUP_CHAT_ID, tip);
 });
 
-// Команди (без промяна)
+// Команди
 bot.onText(/\/analyze (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const crypto = match[1];
