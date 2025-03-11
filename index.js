@@ -7,19 +7,19 @@ const schedule = require('node-schedule');
 const axios = require('axios');
 const GROUP_CHAT_ID = '@Web3ChainLabsAI';
 
-// Функция за вземане на крипто новини
+// Function to fetch crypto news
 async function getCryptoNews() {
   try {
     const response = await axios.get('https://min-api.cryptocompare.com/data/v2/news/?lang=EN');
-    const news = response.data.Data[0]; // Първата новина
+    const news = response.data.Data[0]; // First news item
     return `📰 ${news.title}\n${news.url}`;
   } catch (error) {
     console.error('Error fetching news:', error.message);
-    return 'Няма достъпни новини в момента.';
+    return 'No news available at the moment.';
   }
 }
 
-// Автоматично публикуване на новини (на всеки час)
+// Schedule automatic news posting (every hour)
 schedule.scheduleJob('0 * * * *', async () => {
   const news = await getCryptoNews();
   try {
@@ -39,7 +39,7 @@ bot.onText(/\/analyze (.+)/, async (msg, match) => {
     positive: 60,
     neutral: 30,
     negative: 10,
-    idea: `${crypto}: 60% bullish настроения – разгледай покупка! Tips: ${process.env.ETH_ADDRESS}`
+    idea: `${crypto}: 60% bullish sentiment – consider buying! Tips: ${process.env.ETH_ADDRESS}`
   };
 
   const chartConfig = {
@@ -67,7 +67,7 @@ bot.on('message', (msg) => {
   const chatId = msg.chat.id;
   console.log(`Received message: ${msg.text} from chat ${chatId}`);
   if (msg.text && !msg.text.startsWith('/')) {
-    bot.sendMessage(chatId, "Пиши /analyze [монета], напр. /analyze BTC");
+    bot.sendMessage(chatId, "Type /analyze [coin], e.g., /analyze BTC");
   }
 });
 
