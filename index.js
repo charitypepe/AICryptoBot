@@ -7,17 +7,35 @@ const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const quickChartBase = 'https://quickchart.io/chart';
 const GROUP_CHAT_ID = '@Web3ChainLabsAI';
 
-// Функция за топ 20 криптовалути
+// Функция за AI отговор чрез OpenAI с поддръжка на езици
+async function getAIResponse(question) {
+  try {
+    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
+      model: 'gpt-3.5-turbo',
+      messages: [
+        { role: 'system', content: 'You are a helpful AI that responds in the same language as the question asked.' },
+        { role: 'user', content: question }
+      ],
+      max_tokens: 150,
+      temperature: 0.7
+    }, {
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    return response.data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('Error with AI response:', error.message);
+    return 'Sorry, I couldn’t process your question right now / Съжалявам, не можах да обработя въпроса ти сега.';
+  }
+}
+
+// Топ 20 криптовалути
 async function getTop20Cryptos() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
-      params: {
-        vs_currency: 'usd',
-        order: 'market_cap_desc',
-        per_page: 20,
-        page: 1,
-        sparkline: false
-      }
+      params: { vs_currency: 'usd', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
     });
     const coins = response.data;
     let message = `📊 Top 20 Cryptocurrencies (${new Date().toLocaleString()}):\n`;
@@ -31,18 +49,11 @@ async function getTop20Cryptos() {
   }
 }
 
-// Функция за топ 20 мемемойни
+// Топ 20 мемемойни
 async function getTop20MemeCoins() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
-      params: {
-        vs_currency: 'usd',
-        category: 'meme-token',
-        order: 'market_cap_desc',
-        per_page: 20,
-        page: 1,
-        sparkline: false
-      }
+      params: { vs_currency: 'usd', category: 'meme-token', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
     });
     const coins = response.data;
     let message = `😂 Top 20 Meme Coins (${new Date().toLocaleString()}):\n`;
@@ -56,14 +67,13 @@ async function getTop20MemeCoins() {
   }
 }
 
-// Останалите функции (без промяна)
+// Останалите функции
 async function getCryptoPrices() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
     const prices = response.data;
     return `📈 Current Prices (${new Date().toLocaleString()}):\nBTC: $${prices.bitcoin.usd} | ETH: $${prices.ethereum.usd}`;
   } catch (error) {
-    console.error('Error fetching prices:', error.message);
     return 'Price data unavailable.';
   }
 }
@@ -74,7 +84,6 @@ async function getCryptoNews() {
     const news = response.data.Data[0];
     return `📰 ${news.title}\n${news.url}`;
   } catch (error) {
-    console.error('Error fetching news:', error.message);
     return 'No news available at the moment.';
   }
 }
@@ -97,8 +106,7 @@ async function checkPriceSurge() {
 async function getCryptoMeme() {
   const memeList = [
     { text: '😂 When ETH pumps during the Blood Moon:', url: 'https://i.imgur.com/crypto-meme1.jpg' },
-    { text: '🤔 HODL or sell before the eclipse?', url: 'https://i.imgur.com/crypto-meme2.jpg' },
-    { text: '🚀 BTC to the moon!', url: 'https://i.imgur.com/crypto-meme3.jpg' }
+    { text: '🤔 HODL or sell before the eclipse?', url: 'https://i.imgur.com/crypto-meme2.jpg' }
   ];
   const meme = memeList[Math.floor(Math.random() * memeList.length)];
   return { caption: meme.text, photo: meme.url };
@@ -107,12 +115,7 @@ async function getCryptoMeme() {
 // Автоматични публикации
 schedule.scheduleJob('0 * * * *', async () => {
   const news = await getCryptoNews();
-  try {
-    await bot.sendMessage(GROUP_CHAT_ID, news);
-    console.log('News posted to group!');
-  } catch (error) {
-    console.error('Error posting news:', error.message);
-  }
+  bot.sendMessage(GROUP_CHAT_ID, news).catch(error => console.error('Error posting news:', error.message));
 });
 
 schedule.scheduleJob('0 */2 * * *', async () => {
@@ -128,15 +131,9 @@ schedule.scheduleJob('0 20 13 3 *', () => {
 
 schedule.scheduleJob('0 12 * * *', async () => {
   const meme = await getCryptoMeme();
-  try {
-    await bot.sendPhoto(GROUP_CHAT_ID, meme.photo, { caption: meme.caption });
-    console.log('Meme posted to group!');
-  } catch (error) {
-    console.error('Error posting meme:', error.message);
-  }
+  bot.sendPhoto(GROUP_CHAT_ID, meme.photo, { caption: meme.caption }).catch(error => console.error('Error posting meme:', error.message));
 });
 
-// Нови графици за топ 20 крипто и мемемойни (всеки ден в 8:00 и 20:00)
 schedule.scheduleJob('0 8 * * *', async () => {
   const topCryptos = await getTop20Cryptos();
   bot.sendMessage(GROUP_CHAT_ID, topCryptos);
@@ -171,11 +168,8 @@ bot.onText(/\/analyze (.+)/, async (msg, match) => {
   const chartUrl = `${quickChartBase}?c=${encodeURIComponent(JSON.stringify(chartConfig))}&format=png`;
 
   try {
-    console.log("Sending message...");
     await bot.sendMessage(chatId, analysis.idea);
-    console.log("Message sent. Sending photo...");
     await bot.sendPhoto(chatId, chartUrl);
-    console.log("Photo sent.");
   } catch (error) {
     console.error("Error:", error.message);
   }
@@ -207,12 +201,15 @@ bot.onText(/\/bloodmoon/, (msg) => {
   bot.sendMessage(chatId, response);
 });
 
-// Отговор на обикновени съобщения
-bot.on('message', (msg) => {
+// AI отговор на въпроси на различни езици
+bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   console.log(`Received message: ${msg.text} from chat ${chatId}`);
   if (msg.text && !msg.text.startsWith('/')) {
-    bot.sendMessage(chatId, "Type /analyze [coin], e.g., /analyze BTC");
+    const aiResponse = await getAIResponse(msg.text);
+    bot.sendMessage(chatId, `🤖 ${aiResponse}`);
+  } else if (msg.text && !msg.text.match(/\/(analyze|levels|poll|bloodmoon)/)) {
+    bot.sendMessage(chatId, "Type /analyze [coin], /levels [coin], /poll, or /bloodmoon");
   }
 });
 
