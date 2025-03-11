@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 const schedule = require('node-schedule');
 const OpenAI = require('openai');
+const axios = require('axios'); // Добавено за обща употреба
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const quickChartBase = 'https://quickchart.io/chart';
@@ -11,28 +12,60 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Функция за AI отговор с OpenAI библиотека
+// Функция за AI отговор с разпознаване на въпроси и използване на актуални данни
 async function getAIResponse(question) {
+  const lowerQuestion = question.toLowerCase();
   try {
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Или 'gpt-3.5-turbo', ако нямаш достъп до gpt-4o-mini
-      messages: [
-        { role: 'system', content: 'You are a helpful AI that responds in the same language as the question asked.' },
-        { role: 'user', content: question }
-      ],
-      max_tokens: 150,
-      temperature: 0.7
-    });
-    return completion.choices[0].message.content.trim();
+    // Въпроси за цена на криптовалути
+    if (lowerQuestion.includes('цена') && lowerQuestion.includes('биткойн')) {
+      console.log('Using CoinGecko for prices');
+      const prices = await getCryptoPrices();
+      return `Ето актуалните цени: ${prices}`;
+    }
+    // Въпроси за топ криптовалути
+    else if (lowerQuestion.includes('топ') && lowerQuestion.includes('крипто')) {
+      const topCryptos = await getTop20Cryptos();
+      return `Ето топ 20 криптовалути: ${topCryptos}`;
+    }
+    // Въпроси за времето
+    else if (lowerQuestion.includes('времето')) {
+      const city = lowerQuestion.split(' ').pop() || 'Sofia'; // По подразбиране София
+      const weather = await getWeather(city);
+      return `Ето времето: ${weather}`;
+    }
+    // Общ AI отговор от OpenAI
+    else {
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: `You are a helpful AI that responds in the same language as the question asked. Today's date is ${new Date().toLocaleString()}. If you don’t have real-time data, say so and suggest where to find it.` },
+          { role: 'user', content: question }
+        ],
+        max_tokens: 150,
+        temperature: 0.7
+      });
+      return completion.choices[0].message.content.trim();
+    }
   } catch (error) {
     console.error('Error with AI response:', error.message);
-    return 'Sorry, I couldn’t process your question right now.';
+    return 'Съжалявам, не можах да обработя въпроса ти сега.';
+  }
+}
+
+// Функция за времето с OpenWeatherMap
+async function getWeather(city) {
+  try {
+    const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`);
+    const weather = response.data;
+    return `🌤️ Времето в ${city} днес (${new Date().toLocaleString()}):\nТемпература: ${weather.main.temp}°C\nУсеща се като: ${weather.main.feels_like}°C\nОписание: ${weather.weather[0].description}\nВлажност: ${weather.main.humidity}%`;
+  } catch (error) {
+    console.error('Error fetching weather:', error.message);
+    return 'Не можах да взема данни за времето.';
   }
 }
 
 // Текущи функции (без промяна)
 async function getTop20Cryptos() {
-  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
       params: { vs_currency: 'usd', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
@@ -49,7 +82,6 @@ async function getTop20Cryptos() {
 }
 
 async function getTop20MemeCoins() {
-  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
       params: { vs_currency: 'usd', category: 'meme-token', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
@@ -66,7 +98,6 @@ async function getTop20MemeCoins() {
 }
 
 async function getCryptoPrices() {
-  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
     const prices = response.data;
@@ -77,7 +108,6 @@ async function getCryptoPrices() {
 }
 
 async function getCryptoNews() {
-  const axios = require('axios');
   try {
     const response = await axios.get('https://min-api.cryptocompare.com/data/v2/news/?lang=EN');
     const news = response.data.Data[0];
@@ -89,7 +119,6 @@ async function getCryptoNews() {
 
 let lastEthPrice = null;
 async function checkPriceSurge() {
-  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
     const currentPrice = response.data.ethereum.usd;
@@ -114,7 +143,6 @@ async function getCryptoMeme() {
 
 // Нови функции за публикации
 async function getMarketAnalysis() {
-  const axios = require('axios');
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin');
     const change = response.data.market_data.price_change_percentage_24h;
