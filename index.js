@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 require('dotenv').config();
 const schedule = require('node-schedule');
 const OpenAI = require('openai');
-const axios = require('axios'); // Добавено за обща употреба
+const axios = require('axios');
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const quickChartBase = 'https://quickchart.io/chart';
@@ -12,29 +12,25 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Функция за AI отговор с разпознаване на въпроси и използване на актуални данни
+// Функция за AI отговор с разширена логика
 async function getAIResponse(question) {
   const lowerQuestion = question.toLowerCase();
   try {
-    // Въпроси за цена на криптовалути
     if (lowerQuestion.includes('цена') && lowerQuestion.includes('биткойн')) {
       console.log('Using CoinGecko for prices');
       const prices = await getCryptoPrices();
       return `Ето актуалните цени: ${prices}`;
-    }
-    // Въпроси за топ криптовалути
-    else if (lowerQuestion.includes('топ') && lowerQuestion.includes('крипто')) {
+    } else if (lowerQuestion.includes('топ') && lowerQuestion.includes('крипто')) {
       const topCryptos = await getTop20Cryptos();
       return `Ето топ 20 криптовалути: ${topCryptos}`;
-    }
-    // Въпроси за времето
-    else if (lowerQuestion.includes('времето')) {
-      const city = lowerQuestion.split(' ').pop() || 'Sofia'; // По подразбиране София
+    } else if (lowerQuestion.includes('времето')) {
+      const city = lowerQuestion.split(' ').pop() || 'Sofia';
       const weather = await getWeather(city);
       return `Ето времето: ${weather}`;
-    }
-    // Общ AI отговор от OpenAI
-    else {
+    } else if (lowerQuestion.includes('прогноз') || lowerQuestion.includes('bitcoin')) {
+      const prediction = await getMarketPrediction();
+      return `🤖 ${prediction}`;
+    } else {
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages: [
@@ -52,19 +48,45 @@ async function getAIResponse(question) {
   }
 }
 
-// Функция за времето с OpenWeatherMap
+// Нова функция за пазарна прогноза
+async function getMarketPrediction() {
+  try {
+    const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart', {
+      params: { vs_currency: 'usd', days: '7' } // 7-дневни данни
+    });
+    const prices = response.data.prices; // Масив от [timestamp, price]
+    const currentPrice = prices[prices.length - 1][1];
+    const pastPrices = prices.slice(-7).map(p => p[1]); // Последните 7 точки
+    const avgPrice = pastPrices.reduce((a, b) => a + b, 0) / pastPrices.length; // Средна цена за 7 дни
+    const trend = currentPrice > avgPrice ? 'възходящ' : 'низходящ';
+    const change24h = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin').then(res => res.data.market_data.price_change_percentage_24h);
+
+    let prediction;
+    if (trend === 'възходящ' && change24h > 0) {
+      prediction = `Прогноза за Биткойн: Цената ($ ${currentPrice.toLocaleString()}) е в ${trend} тренд. Средната цена за 7 дни е $ ${avgPrice.toLocaleString()}. Въз основа на 24-часовия ръст (${change24h.toFixed(2)}%), вероятно ще продължи да расте в краткосрочен план.`;
+    } else if (trend === 'низходящ' && change24h < 0) {
+      prediction = `Прогноза за Биткойн: Цената ($ ${currentPrice.toLocaleString()}) е в ${trend} тренд. Средната цена за 7 дни е $ ${avgPrice.toLocaleString()}. Въз основа на 24-часовия спад (${change24h.toFixed(2)}%), може да продължи да пада скоро.`;
+    } else {
+      prediction = `Прогноза за Биткойн: Цената ($ ${currentPrice.toLocaleString()}) е около средната за 7 дни ($ ${avgPrice.toLocaleString()}). Пазарът е нестабилен с 24-часова промяна ${change24h.toFixed(2)}%. Трудно е да се предвиди ясно движение.`;
+    }
+    return `${prediction}\n📊 Провери повече на https://www.coingecko.com/en/coins/bitcoin`;
+  } catch (error) {
+    console.error('Error fetching market prediction:', error.message);
+    return 'Не можах да направя прогноза за пазара сега.';
+  }
+}
+
+// Останалите функции (без промяна)
 async function getWeather(city) {
   try {
     const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`);
     const weather = response.data;
     return `🌤️ Времето в ${city} днес (${new Date().toLocaleString()}):\nТемпература: ${weather.main.temp}°C\nУсеща се като: ${weather.main.feels_like}°C\nОписание: ${weather.weather[0].description}\nВлажност: ${weather.main.humidity}%`;
   } catch (error) {
-    console.error('Error fetching weather:', error.message);
     return 'Не можах да взема данни за времето.';
   }
 }
 
-// Текущи функции (без промяна)
 async function getTop20Cryptos() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/markets', {
@@ -141,7 +163,6 @@ async function getCryptoMeme() {
   return { caption: meme.text, photo: meme.url };
 }
 
-// Нови функции за публикации
 async function getMarketAnalysis() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin');
@@ -196,7 +217,7 @@ function getTradingTip() {
 // Поздравление на нови членове
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
-  if (chatId.toString() === '-1002452661138') { // ID на @Web3ChainLabsAI
+  if (chatId.toString() === '-1002452661138') {
     msg.new_chat_members.forEach((member) => {
       const userId = member.id;
       const welcomeMessage = `Hello, ${member.first_name}! Welcome to @Web3ChainLabsAI! Here you'll find crypto news, analysis, and more!`;
@@ -206,7 +227,7 @@ bot.on('new_chat_members', (msg) => {
   }
 });
 
-// Планирани публикации (текущи)
+// Планирани публикации
 schedule.scheduleJob('0 * * * *', async () => {
   const news = await getCryptoNews();
   bot.sendMessage(GROUP_CHAT_ID, news).catch(error => console.error('Error posting news:', error.message));
@@ -238,7 +259,6 @@ schedule.scheduleJob('0 20 * * *', async () => {
   bot.sendMessage(GROUP_CHAT_ID, topMemeCoins);
 });
 
-// Нови планирани публикации
 schedule.scheduleJob('0 10 * * *', async () => {
   const analysis = await getMarketAnalysis();
   bot.sendMessage(GROUP_CHAT_ID, analysis);
@@ -271,6 +291,12 @@ schedule.scheduleJob('0 11 * * 1', () => {
 schedule.scheduleJob('0 13 * * *', () => {
   const tip = getTradingTip();
   bot.sendMessage(GROUP_CHAT_ID, tip);
+});
+
+// Добавяне на автоматична прогноза всеки ден в 15:00
+schedule.scheduleJob('0 15 * * *', async () => {
+  const prediction = await getMarketPrediction();
+  bot.sendMessage(GROUP_CHAT_ID, `📈 Дневна прогноза:\n${prediction}`);
 });
 
 // Команди
