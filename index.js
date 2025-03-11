@@ -20,14 +20,14 @@ async function getAIResponse(question) {
       temperature: 0.7
     }, {
       headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}',
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
         'Content-Type': 'application/json'
       }
     });
     return response.data.choices[0].message.content.trim();
   } catch (error) {
     console.error('Error with AI response:', error.message);
-    return 'Съжалявам, не можах да обработя въпроса ти сега.';
+    return 'Sorry, I couldn’t process your question right now.';
   }
 }
 
@@ -38,13 +38,13 @@ async function getTop20Cryptos() {
       params: { vs_currency: 'usd', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
     });
     const coins = response.data;
-    let message = `📊 Топ 20 криптовалути (${new Date().toLocaleString()}):\n`;
+    let message = `📊 Top 20 Cryptocurrencies (${new Date().toLocaleString()}):\n`;
     coins.forEach((coin, index) => {
-      message += `${index + 1}. ${coin.symbol.toUpperCase()}: $${coin.current_price} (Пазарна капитализация: $${coin.market_cap.toLocaleString()})\n`;
+      message += `${index + 1}. ${coin.symbol.toUpperCase()}: $${coin.current_price} (Market Cap: $${coin.market_cap.toLocaleString()})\n`;
     });
     return message;
   } catch (error) {
-    return 'Не можах да взема топ 20 криптовалути.';
+    return 'Unable to fetch top 20 cryptocurrencies.';
   }
 }
 
@@ -54,13 +54,13 @@ async function getTop20MemeCoins() {
       params: { vs_currency: 'usd', category: 'meme-token', order: 'market_cap_desc', per_page: 20, page: 1, sparkline: false }
     });
     const coins = response.data;
-    let message = `😂 Топ 20 мемемойни (${new Date().toLocaleString()}):\n`;
+    let message = `😂 Top 20 Meme Coins (${new Date().toLocaleString()}):\n`;
     coins.forEach((coin, index) => {
-      message += `${index + 1}. ${coin.symbol.toUpperCase()}: $${coin.current_price} (Пазарна капитализация: $${coin.market_cap.toLocaleString()})\n`;
+      message += `${index + 1}. ${coin.symbol.toUpperCase()}: $${coin.current_price} (Market Cap: $${coin.market_cap.toLocaleString()})\n`;
     });
     return message;
   } catch (error) {
-    return 'Не можах да взема топ 20 мемемойни.';
+    return 'Unable to fetch top 20 meme coins.';
   }
 }
 
@@ -68,9 +68,9 @@ async function getCryptoPrices() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
     const prices = response.data;
-    return `📈 Текущи цени (${new Date().toLocaleString()}):\nBTC: $${prices.bitcoin.usd} | ETH: $${prices.ethereum.usd}`;
+    return `📈 Current Prices (${new Date().toLocaleString()}):\nBTC: $${prices.bitcoin.usd} | ETH: $${prices.ethereum.usd}`;
   } catch (error) {
-    return 'Данните за цените не са налични.';
+    return 'Price data unavailable.';
   }
 }
 
@@ -80,7 +80,7 @@ async function getCryptoNews() {
     const news = response.data.Data[0];
     return `📰 ${news.title}\n${news.url}`;
   } catch (error) {
-    return 'Няма налични новини в момента.';
+    return 'No news available at the moment.';
   }
 }
 
@@ -90,8 +90,8 @@ async function checkPriceSurge() {
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
     const currentPrice = response.data.ethereum.usd;
     if (lastEthPrice && Math.abs(currentPrice - lastEthPrice) / lastEthPrice > 0.05) {
-      const direction = currentPrice > lastEthPrice ? 'повиши' : 'падна';
-      bot.sendMessage(GROUP_CHAT_ID, `⚠️ ETH ${direction} с ${((currentPrice - lastEthPrice) / lastEthPrice * 100).toFixed(2)}% за последните 30 мин! Сега е $${currentPrice}.`);
+      const direction = currentPrice > lastEthPrice ? 'surged' : 'dropped';
+      bot.sendMessage(GROUP_CHAT_ID, `⚠️ ETH ${direction} ${((currentPrice - lastEthPrice) / lastEthPrice * 100).toFixed(2)}% in the last 30 min! Now at $${currentPrice}.`);
     }
     lastEthPrice = currentPrice;
   } catch (error) {
@@ -101,8 +101,8 @@ async function checkPriceSurge() {
 
 async function getCryptoMeme() {
   const memeList = [
-    { text: '😂 Когато ETH скочи по време на Blood Moon:', url: 'https://i.imgur.com/crypto-meme1.jpg' },
-    { text: '🤔 Да държа или да продам преди затъмнението?', url: 'https://i.imgur.com/crypto-meme2.jpg' }
+    { text: '😂 When ETH pumps during the Blood Moon:', url: 'https://i.imgur.com/crypto-meme1.jpg' },
+    { text: '🤔 HODL or sell before the eclipse?', url: 'https://i.imgur.com/crypto-meme2.jpg' }
   ];
   const meme = memeList[Math.floor(Math.random() * memeList.length)];
   return { caption: meme.text, photo: meme.url };
@@ -113,52 +113,65 @@ async function getMarketAnalysis() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin');
     const change = response.data.market_data.price_change_percentage_24h;
-    return `📈 Анализ на пазара (${new Date().toLocaleString()}): Биткойн ${change > 0 ? 'скочи' : 'падна'} с ${change.toFixed(2)}% днес – възможна причина е нов ETF или пазарна волатилност.`;
+    return `📈 Market Analysis (${new Date().toLocaleString()}): Bitcoin ${change > 0 ? 'rose' : 'fell'} by ${change.toFixed(2)}% today – possible reason: new ETF or market volatility.`;
   } catch (error) {
-    return '📈 Анализ на пазара: Не можах да взема данни за Биткойн днес.';
+    return '📈 Market Analysis: Couldn’t fetch Bitcoin data today.';
   }
 }
 
 function getEducationalContent() {
   const topics = [
-    '💡 Какво е DeFi? Децентрализираните финанси позволяват...',
-    '💡 Какво е NFT? Уникален цифров актив, който...',
-    '💡 Какво е staking? Това е процес на заключване на крипто за...',
+    '💡 What is DeFi? Decentralized finance allows...',
+    '💡 What is an NFT? A unique digital asset that...',
+    '💡 What is staking? It’s the process of locking crypto to...',
   ];
   return topics[Math.floor(Math.random() * topics.length)];
 }
 
 function sendPoll() {
-  bot.sendPoll(GROUP_CHAT_ID, 'Ще достигне ли ETH $3000 до края на март?', ['Да', 'Не'], { is_anonymous: false });
+  bot.sendPoll(GROUP_CHAT_ID, 'Will ETH reach $3000 by the end of March?', ['Yes', 'No'], { is_anonymous: false });
 }
 
 function getScamWarning() {
   const scams = [
-    '⚠️ Внимание: Нов scam с фалшив airdrop за XRP – не споделяйте ключове!',
-    '⚠️ Внимавайте с фишинг: Лъжливи сайтове за "безплатен BTC" искат пароли!',
+    '⚠️ Warning: New scam with fake XRP airdrop – don’t share your keys!',
+    '⚠️ Beware of phishing: Fake "free BTC" sites are after your passwords!',
   ];
   return scams[Math.floor(Math.random() * scams.length)];
 }
 
 function getGameChallenge() {
-  return '🎲 Познай коя монета е нараснала най-много днес и спечели 0.001 ETH! Пиши отговора си тук до 20:00 CET.';
+  return '🎲 Guess which coin grew the most today and win 0.001 ETH! Post your answer here by 20:00 CET.';
 }
 
 function getCryptoStory() {
   const stories = [
-    '📜 Как един трейдър спечели $1M от SHIB: Започна с $100 през 2020...',
-    '📜 Историята на Биткойн: От 1 BTC = $0.0008 до $70K днес!',
+    '📜 How one trader made $1M from SHIB: Started with $100 in 2020...',
+    '📜 Bitcoin’s story: From 1 BTC = $0.0008 to $70K today!',
   ];
   return stories[Math.floor(Math.random() * stories.length)];
 }
 
 function getTradingTip() {
   const tips = [
-    '📊 Купувай на подкрепа, продавай на съпротива – ето пример с BTC: подкрепа $70K, съпротива $75K.',
-    '📊 Не гони трендове – чакай потвърждение преди да влезеш в сделка!',
+    '📊 Buy at support, sell at resistance – example with BTC: support $70K, resistance $75K.',
+    '📊 Don’t chase trends – wait for confirmation before entering a trade!',
   ];
   return tips[Math.floor(Math.random() * tips.length)];
 }
+
+// Поздравление на нови членове (на английски)
+bot.on('new_chat_members', (msg) => {
+  const chatId = msg.chat.id;
+  if (chatId.toString() === '-1002452661138') { // ID на @Web3ChainLabsAI
+    msg.new_chat_members.forEach((member) => {
+      const userId = member.id;
+      const welcomeMessage = `Hello, ${member.first_name}! Welcome to @Web3ChainLabsAI! Here you'll find crypto news, analysis, and more!`;
+      bot.sendMessage(userId, welcomeMessage)
+        .catch(error => console.error(`Couldn’t send DM to ${member.first_name}: ${error.message}`));
+    });
+  }
+});
 
 // Планирани публикации (текущи)
 schedule.scheduleJob('0 * * * *', async () => {
@@ -174,7 +187,7 @@ schedule.scheduleJob('0 */2 * * *', async () => {
 schedule.scheduleJob('*/30 * * * *', checkPriceSurge);
 
 schedule.scheduleJob('0 20 13 3 *', () => {
-  bot.sendMessage(GROUP_CHAT_ID, `🌑 Лунно затъмнение Blood Moon сега (13 март 2025)!\nНастроения за ETH: 60% бичи! Гледай небето и пазарите!`);
+  bot.sendMessage(GROUP_CHAT_ID, `🌑 Blood Moon Eclipse Now (13 Mar 2025)!\nETH sentiment: 60% bullish! Watch the skies and markets!`);
 });
 
 schedule.scheduleJob('0 12 * * *', async () => {
@@ -243,18 +256,18 @@ bot.onText(/\/levels (.+)/, async (msg, match) => {
   const crypto = match[1].toUpperCase();
   const levels = { BTC: { support: 73000, resistance: 76000 }, ETH: { support: 2700, resistance: 2900 } };
   const data = levels[crypto] || { support: 'N/A', resistance: 'N/A' };
-  const response = `🔍 ${crypto} Технически анализ:\nПодкрепа: $${data.support} | Съпротива: $${data.resistance}`;
+  const response = `🔍 ${crypto} Technical Analysis:\nSupport: $${data.support} | Resistance: $${data.resistance}`;
   bot.sendMessage(chatId, response);
 });
 
 bot.onText(/\/poll/, (msg) => {
   const chatId = msg.chat.id;
-  bot.sendPoll(chatId, 'Ще се покачи ли ETH след Blood Moon?', ['Да', 'Не'], { is_anonymous: false });
+  bot.sendPoll(chatId, 'Will ETH rise after the Blood Moon?', ['Yes', 'No'], { is_anonymous: false });
 });
 
 bot.onText(/\/bloodmoon/, (msg) => {
   const chatId = msg.chat.id;
-  const response = `🌑 Лунно затъмнение Blood Moon на 13-14 март 2025!\nГледай ETH – 60% bullish sentiment може да скочи!`;
+  const response = `🌑 Blood Moon Eclipse on 13-14 Mar 2025!\nWatch ETH – 60% bullish sentiment might spike!`;
   bot.sendMessage(chatId, response);
 });
 
@@ -266,7 +279,7 @@ bot.on('message', async (msg) => {
     const aiResponse = await getAIResponse(msg.text);
     bot.sendMessage(chatId, `🤖 ${aiResponse}`);
   } else if (msg.text && !msg.text.match(/\/(analyze|levels|poll|bloodmoon)/)) {
-    bot.sendMessage(chatId, "Пиши /analyze [монета], /levels [монета], /poll или /bloodmoon");
+    bot.sendMessage(chatId, "Type /analyze [coin], /levels [coin], /poll, or /bloodmoon");
   }
 });
 
