@@ -3,6 +3,32 @@ require('dotenv').config();
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const quickChartBase = 'https://quickchart.io/chart';
+const schedule = require('node-schedule');
+const axios = require('axios');
+const GROUP_CHAT_ID = '@Web3ChainLabsAI';
+
+// Функция за вземане на крипто новини
+async function getCryptoNews() {
+  try {
+    const response = await axios.get('https://min-api.cryptocompare.com/data/v2/news/?lang=EN');
+    const news = response.data.Data[0]; // Първата новина
+    return `📰 ${news.title}\n${news.url}`;
+  } catch (error) {
+    console.error('Error fetching news:', error.message);
+    return 'Няма достъпни новини в момента.';
+  }
+}
+
+// Автоматично публикуване на новини (на всеки час)
+schedule.scheduleJob('0 * * * *', async () => {
+  const news = await getCryptoNews();
+  try {
+    await bot.sendMessage(GROUP_CHAT_ID, news);
+    console.log('News posted to group!');
+  } catch (error) {
+    console.error('Error posting news:', error.message);
+  }
+});
 
 bot.onText(/\/analyze (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
