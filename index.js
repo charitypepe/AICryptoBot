@@ -12,13 +12,45 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Function for AI response with extended logic
+// Price caching
+let cachedPrices = null;
+let lastFetchTime = 0;
+const CACHE_DURATION = 300000; // 5 minutes in milliseconds
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function getCryptoPrices() {
+  const now = Date.now();
+  if (cachedPrices && (now - lastFetchTime) < CACHE_DURATION) {
+    console.log('Using cached prices:', cachedPrices);
+    return cachedPrices;
+  }
+
+  try {
+    console.log('Fetching new prices from CoinGecko...');
+    await delay(5000); // 5-second delay to avoid rate limits
+    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
+    const prices = response.data;
+    const message = `📈 Current Prices (${new Date().toLocaleString()}):\nBTC: $${prices.bitcoin.usd} | ETH: $${prices.ethereum.usd}`;
+    cachedPrices = message;
+    lastFetchTime = now;
+    console.log('Prices fetched successfully:', message);
+    return message;
+  } catch (error) {
+    console.error('Error fetching prices:', error.message);
+    return 'Price data unavailable.';
+  }
+}
+
 async function getAIResponse(question) {
   const lowerQuestion = question.toLowerCase();
   try {
     if (lowerQuestion.includes('price') && lowerQuestion.includes('bitcoin')) {
-      console.log('Using CoinGecko for prices');
+      console.log('Processing Bitcoin price request...');
       const prices = await getCryptoPrices();
+      console.log('Price response ready:', prices);
       return `Here are the current prices: ${prices}`;
     } else if (lowerQuestion.includes('top') && lowerQuestion.includes('crypto')) {
       const topCryptos = await getTop20Cryptos();
@@ -48,16 +80,15 @@ async function getAIResponse(question) {
   }
 }
 
-// New function for market prediction
 async function getMarketPrediction() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart', {
-      params: { vs_currency: 'usd', days: '7' } // 7-day data
+      params: { vs_currency: 'usd', days: '7' }
     });
     const prices = response.data.prices; // Array of [timestamp, price]
     const currentPrice = prices[prices.length - 1][1];
     const pastPrices = prices.slice(-7).map(p => p[1]); // Last 7 points
-    const avgPrice = pastPrices.reduce((a, b) => a + b, 0) / pastPrices.length; // Average price over 7 days
+    const avgPrice = pastPrices.reduce((a, b) => a + b, 0) / pastPrices.length;
     const trend = currentPrice > avgPrice ? 'bullish' : 'bearish';
     const change24h = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin').then(res => res.data.market_data.price_change_percentage_24h);
 
@@ -76,7 +107,6 @@ async function getMarketPrediction() {
   }
 }
 
-// Other functions (unchanged but translated to English)
 async function getWeather(city) {
   try {
     const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`);
@@ -116,16 +146,6 @@ async function getTop20MemeCoins() {
     return message;
   } catch (error) {
     return 'Unable to fetch top 20 meme coins.';
-  }
-}
-
-async function getCryptoPrices() {
-  try {
-    const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
-    const prices = response.data;
-    return `📈 Current Prices (${new Date().toLocaleString()}):\nBTC: $${prices.bitcoin.usd} | ETH: $${prices.ethereum.usd}`;
-  } catch (error) {
-    return 'Price data unavailable.';
   }
 }
 
@@ -293,7 +313,6 @@ schedule.scheduleJob('0 13 * * *', () => {
   bot.sendMessage(GROUP_CHAT_ID, tip);
 });
 
-// Daily forecast at 15:00
 schedule.scheduleJob('0 15 * * *', async () => {
   const prediction = await getMarketPrediction();
   bot.sendMessage(GROUP_CHAT_ID, `📈 Daily Forecast:\n${prediction}`);
@@ -330,15 +349,17 @@ bot.onText(/\/bloodmoon/, (msg) => {
   bot.sendMessage(chatId, response);
 });
 
-// AI responses
+// Message handling with full logging
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   console.log(`Received message: ${msg.text} from chat ${chatId}`);
   if (msg.text && !msg.text.startsWith('/')) {
     const aiResponse = await getAIResponse(msg.text);
     bot.sendMessage(chatId, `🤖 ${aiResponse}`);
+    console.log(`Sent response to chat ${chatId}: ${aiResponse}`);
   } else if (msg.text && !msg.text.match(/\/(analyze|levels|poll|bloodmoon)/)) {
     bot.sendMessage(chatId, "Type /analyze [coin], /levels [coin], /poll, or /bloodmoon");
+    console.log(`Sent instructions to chat ${chatId}`);
   }
 });
 
