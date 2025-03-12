@@ -12,22 +12,22 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Функция за AI отговор с разширена логика
+// Function for AI response with extended logic
 async function getAIResponse(question) {
   const lowerQuestion = question.toLowerCase();
   try {
-    if (lowerQuestion.includes('цена') && lowerQuestion.includes('биткойн')) {
+    if (lowerQuestion.includes('price') && lowerQuestion.includes('bitcoin')) {
       console.log('Using CoinGecko for prices');
       const prices = await getCryptoPrices();
-      return `Ето актуалните цени: ${prices}`;
-    } else if (lowerQuestion.includes('топ') && lowerQuestion.includes('крипто')) {
+      return `Here are the current prices: ${prices}`;
+    } else if (lowerQuestion.includes('top') && lowerQuestion.includes('crypto')) {
       const topCryptos = await getTop20Cryptos();
-      return `Ето топ 20 криптовалути: ${topCryptos}`;
-    } else if (lowerQuestion.includes('времето')) {
+      return `Here are the top 20 cryptocurrencies: ${topCryptos}`;
+    } else if (lowerQuestion.includes('weather')) {
       const city = lowerQuestion.split(' ').pop() || 'Sofia';
       const weather = await getWeather(city);
-      return `Ето времето: ${weather}`;
-    } else if (lowerQuestion.includes('прогноз') || lowerQuestion.includes('bitcoin')) {
+      return `Here’s the weather: ${weather}`;
+    } else if (lowerQuestion.includes('forecast') || lowerQuestion.includes('bitcoin')) {
       const prediction = await getMarketPrediction();
       return `🤖 ${prediction}`;
     } else {
@@ -44,46 +44,46 @@ async function getAIResponse(question) {
     }
   } catch (error) {
     console.error('Error with AI response:', error.message);
-    return 'Съжалявам, не можах да обработя въпроса ти сега.';
+    return 'Sorry, I couldn’t process your question right now.';
   }
 }
 
-// Нова функция за пазарна прогноза
+// New function for market prediction
 async function getMarketPrediction() {
   try {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart', {
-      params: { vs_currency: 'usd', days: '7' } // 7-дневни данни
+      params: { vs_currency: 'usd', days: '7' } // 7-day data
     });
-    const prices = response.data.prices; // Масив от [timestamp, price]
+    const prices = response.data.prices; // Array of [timestamp, price]
     const currentPrice = prices[prices.length - 1][1];
-    const pastPrices = prices.slice(-7).map(p => p[1]); // Последните 7 точки
-    const avgPrice = pastPrices.reduce((a, b) => a + b, 0) / pastPrices.length; // Средна цена за 7 дни
-    const trend = currentPrice > avgPrice ? 'възходящ' : 'низходящ';
+    const pastPrices = prices.slice(-7).map(p => p[1]); // Last 7 points
+    const avgPrice = pastPrices.reduce((a, b) => a + b, 0) / pastPrices.length; // Average price over 7 days
+    const trend = currentPrice > avgPrice ? 'bullish' : 'bearish';
     const change24h = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin').then(res => res.data.market_data.price_change_percentage_24h);
 
     let prediction;
-    if (trend === 'възходящ' && change24h > 0) {
-      prediction = `Прогноза за Биткойн: Цената ($ ${currentPrice.toLocaleString()}) е в ${trend} тренд. Средната цена за 7 дни е $ ${avgPrice.toLocaleString()}. Въз основа на 24-часовия ръст (${change24h.toFixed(2)}%), вероятно ще продължи да расте в краткосрочен план.`;
-    } else if (trend === 'низходящ' && change24h < 0) {
-      prediction = `Прогноза за Биткойн: Цената ($ ${currentPrice.toLocaleString()}) е в ${trend} тренд. Средната цена за 7 дни е $ ${avgPrice.toLocaleString()}. Въз основа на 24-часовия спад (${change24h.toFixed(2)}%), може да продължи да пада скоро.`;
+    if (trend === 'bullish' && change24h > 0) {
+      prediction = `Bitcoin Forecast: The price ($ ${currentPrice.toLocaleString()}) is in a ${trend} trend. The 7-day average price is $ ${avgPrice.toLocaleString()}. Based on a 24-hour increase (${change24h.toFixed(2)}%), it’s likely to rise in the short term.`;
+    } else if (trend === 'bearish' && change24h < 0) {
+      prediction = `Bitcoin Forecast: The price ($ ${currentPrice.toLocaleString()}) is in a ${trend} trend. The 7-day average price is $ ${avgPrice.toLocaleString()}. Based on a 24-hour drop (${change24h.toFixed(2)}%), it may continue to fall soon.`;
     } else {
-      prediction = `Прогноза за Биткойн: Цената ($ ${currentPrice.toLocaleString()}) е около средната за 7 дни ($ ${avgPrice.toLocaleString()}). Пазарът е нестабилен с 24-часова промяна ${change24h.toFixed(2)}%. Трудно е да се предвиди ясно движение.`;
+      prediction = `Bitcoin Forecast: The price ($ ${currentPrice.toLocaleString()}) is near the 7-day average ($ ${avgPrice.toLocaleString()}). The market is volatile with a 24-hour change of ${change24h.toFixed(2)}%. It’s hard to predict a clear movement.`;
     }
-    return `${prediction}\n📊 Провери повече на https://www.coingecko.com/en/coins/bitcoin`;
+    return `${prediction}\n📊 Check more at https://www.coingecko.com/en/coins/bitcoin`;
   } catch (error) {
     console.error('Error fetching market prediction:', error.message);
-    return 'Не можах да направя прогноза за пазара сега.';
+    return 'Couldn’t generate a market prediction right now.';
   }
 }
 
-// Останалите функции (без промяна)
+// Other functions (unchanged but translated to English)
 async function getWeather(city) {
   try {
     const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${process.env.OPENWEATHER_API_KEY}&units=metric`);
     const weather = response.data;
-    return `🌤️ Времето в ${city} днес (${new Date().toLocaleString()}):\nТемпература: ${weather.main.temp}°C\nУсеща се като: ${weather.main.feels_like}°C\nОписание: ${weather.weather[0].description}\nВлажност: ${weather.main.humidity}%`;
+    return `🌤️ Weather in ${city} today (${new Date().toLocaleString()}):\nTemperature: ${weather.main.temp}°C\nFeels like: ${weather.main.feels_like}°C\nDescription: ${weather.weather[0].description}\nHumidity: ${weather.main.humidity}%`;
   } catch (error) {
-    return 'Не можах да взема данни за времето.';
+    return 'Couldn’t fetch weather data.';
   }
 }
 
@@ -214,7 +214,7 @@ function getTradingTip() {
   return tips[Math.floor(Math.random() * tips.length)];
 }
 
-// Поздравление на нови членове
+// Greeting new members
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
   if (chatId.toString() === '-1002452661138') {
@@ -227,7 +227,7 @@ bot.on('new_chat_members', (msg) => {
   }
 });
 
-// Планирани публикации
+// Scheduled posts
 schedule.scheduleJob('0 * * * *', async () => {
   const news = await getCryptoNews();
   bot.sendMessage(GROUP_CHAT_ID, news).catch(error => console.error('Error posting news:', error.message));
@@ -293,13 +293,13 @@ schedule.scheduleJob('0 13 * * *', () => {
   bot.sendMessage(GROUP_CHAT_ID, tip);
 });
 
-// Добавяне на автоматична прогноза всеки ден в 15:00
+// Daily forecast at 15:00
 schedule.scheduleJob('0 15 * * *', async () => {
   const prediction = await getMarketPrediction();
-  bot.sendMessage(GROUP_CHAT_ID, `📈 Дневна прогноза:\n${prediction}`);
+  bot.sendMessage(GROUP_CHAT_ID, `📈 Daily Forecast:\n${prediction}`);
 });
 
-// Команди
+// Commands
 bot.onText(/\/analyze (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const crypto = match[1];
@@ -330,7 +330,7 @@ bot.onText(/\/bloodmoon/, (msg) => {
   bot.sendMessage(chatId, response);
 });
 
-// AI отговори
+// AI responses
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   console.log(`Received message: ${msg.text} from chat ${chatId}`);
