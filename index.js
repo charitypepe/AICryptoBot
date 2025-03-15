@@ -7,7 +7,6 @@ const schedule = require('node-schedule');
 const OpenAI = require('openai');
 const axios = require('axios');
 
-// Инициализация на Express и Socket.io
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -20,10 +19,9 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Price caching
 let cachedPrices = null;
 let lastFetchTime = 0;
-const CACHE_DURATION = 300000; // 5 minutes in milliseconds
+const CACHE_DURATION = 300000;
 
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -35,10 +33,9 @@ async function getCryptoPrices() {
     console.log('Using cached prices:', cachedPrices);
     return cachedPrices;
   }
-
   try {
     console.log('Fetching new prices from CoinGecko...');
-    await delay(5000); // 5-second delay to avoid rate limits
+    await delay(5000);
     const response = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd');
     const prices = response.data;
     const message = `📈 Current Prices (${new Date().toLocaleString()}):\nBTC: $${prices.bitcoin.usd} | ETH: $${prices.ethereum.usd}`;
@@ -93,9 +90,9 @@ async function getMarketPrediction() {
     const response = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart', {
       params: { vs_currency: 'usd', days: '7' }
     });
-    const prices = response.data.prices; // Array of [timestamp, price]
+    const prices = response.data.prices;
     const currentPrice = prices[prices.length - 1][1];
-    const pastPrices = prices.slice(-7).map(p => p[1]); // Last 7 points
+    const pastPrices = prices.slice(-7).map(p => p[1]);
     const avgPrice = pastPrices.reduce((a, b) => a + b, 0) / pastPrices.length;
     const trend = currentPrice > avgPrice ? 'bullish' : 'bearish';
     const change24h = await axios.get('https://api.coingecko.com/api/v3/coins/bitcoin').then(res => res.data.market_data.price_change_percentage_24h);
@@ -242,7 +239,6 @@ function getTradingTip() {
   return tips[Math.floor(Math.random() * tips.length)];
 }
 
-// Нови API ендпойнтове за уебсайта
 app.get('/api/prices', async (req, res) => {
   try {
     const prices = await getCryptoPrices();
@@ -263,7 +259,6 @@ app.get('/api/forecast', async (req, res) => {
   }
 });
 
-// WebSocket за чат (празна логика за сега)
 io.on('connection', (socket) => {
   console.log('User connected to chat via WebSocket');
   socket.on('disconnect', () => {
@@ -271,7 +266,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// Greeting new members
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
   if (chatId.toString() === '-1002452661138') {
@@ -284,7 +278,6 @@ bot.on('new_chat_members', (msg) => {
   }
 });
 
-// Scheduled posts
 schedule.scheduleJob('0 * * * *', async () => {
   const news = await getCryptoNews();
   bot.sendMessage(GROUP_CHAT_ID, news).catch(error => console.error('Error posting news:', error.message));
@@ -355,7 +348,6 @@ schedule.scheduleJob('0 15 * * *', async () => {
   bot.sendMessage(GROUP_CHAT_ID, `📈 Daily Forecast:\n${prediction}`);
 });
 
-// Commands
 bot.onText(/\/analyze (.+)/, async (msg, match) => {
   const chatId = msg.chat.id;
   const crypto = match[1];
@@ -386,7 +378,6 @@ bot.onText(/\/bloodmoon/, (msg) => {
   bot.sendMessage(chatId, response);
 });
 
-// Message handling with full logging
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   console.log(`Received message: ${msg.text} from chat ${chatId}`);
@@ -400,7 +391,6 @@ bot.on('message', async (msg) => {
   }
 });
 
-// Стартиране на сървъра за Render
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
