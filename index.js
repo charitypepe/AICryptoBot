@@ -1,8 +1,16 @@
 const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
+const { Server } = require('socket.io');
+const http = require('http');
 require('dotenv').config();
 const schedule = require('node-schedule');
 const OpenAI = require('openai');
 const axios = require('axios');
+
+// Инициализация на Express и Socket.io
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 const bot = new TelegramBot(process.env.TELEGRAM_TOKEN, { polling: true });
 const quickChartBase = 'https://quickchart.io/chart';
@@ -234,6 +242,35 @@ function getTradingTip() {
   return tips[Math.floor(Math.random() * tips.length)];
 }
 
+// Нови API ендпойнтове за уебсайта
+app.get('/api/prices', async (req, res) => {
+  try {
+    const prices = await getCryptoPrices();
+    res.json({ prices });
+  } catch (error) {
+    console.error('Error in /api/prices:', error.message);
+    res.status(500).json({ error: 'Failed to fetch prices' });
+  }
+});
+
+app.get('/api/forecast', async (req, res) => {
+  try {
+    const forecast = await getMarketPrediction();
+    res.json({ forecast });
+  } catch (error) {
+    console.error('Error in /api/forecast:', error.message);
+    res.status(500).json({ error: 'Failed to fetch forecast' });
+  }
+});
+
+// WebSocket за чат (празна логика за сега)
+io.on('connection', (socket) => {
+  console.log('User connected to chat via WebSocket');
+  socket.on('disconnect', () => {
+    console.log('User disconnected from chat');
+  });
+});
+
 // Greeting new members
 bot.on('new_chat_members', (msg) => {
   const chatId = msg.chat.id;
@@ -363,4 +400,8 @@ bot.on('message', async (msg) => {
   }
 });
 
-console.log("Bot running...");
+// Стартиране на сървъра за Render
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
